@@ -1,2 +1,41 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
+# Environment variables
 .env
 .env.*
+
+# Database files
+*.db
+*.sqlite
+*.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code and IDE settings
+.vscode/
+.idea/
+
+# MS Office autosave/temp files
+~$*
+
+# Jupyter Notebook checkpoints (if applicable)
+.ipynb_checkpoints/
+
+# System folders (optional)
+*.bak
+*.swp
