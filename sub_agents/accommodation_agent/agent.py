@@ -1,33 +1,21 @@
 from google.adk.agents import Agent
+from trip_tools.accom_tools import collect_accommodation_info
+from trip_tools.convo_tools import handle_convo
 
 accommodation_agent = Agent(
     name="accommodation_agent",
     model="gemini-2.0-flash",
-    description="Handles accommodation queries for a trip planning assistant.",
+    description="Handles accommodation-related tasks.",
     instruction="""
-    You are responsible for finding accommodation options based on:
-    - Location
-    - Budget
-    - Travel dates
+        Only proceed if all required info is available:
+        - location
+        - check-in date
+        - check-out date
+        - budget
 
-    Use state['user_preferences'] to access:
-    - 'location': string
-    - 'start_date': string
-    - 'end_date': string
-    - 'budget': float
+        Store only structured info in state['trip_plan']['accommodation']. Do NOT hardcode any hotel or simulate responses.
 
-    Save your chosen accommodation under state['trip_plan']['accommodation'] as a dictionary:
-    {
-        "hotel_name": str,
-        "location": str,
-        "price_per_night": float,
-        "total_price": float,
-        "check_in": str,
-        "check_out": str
-    }
-
-    If information is missing or unclear, delegate to the conversation agent for clarification.
-    Be descriptive and helpful. Suggest options if no data is fixed.
-    """,
-    tools=[]
+        If user query is general (e.g., 'best hotels in Delhi'), call "handle_convo" tool only to fetch via Google Search.
+        """,
+    tools=[collect_accommodation_info, handle_convo]
 )

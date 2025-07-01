@@ -1,29 +1,15 @@
 from google.adk.agents import Agent
+from trip_tools.travel_tools import collect_travel_info
+from trip_tools.convo_tools import handle_convo
 
 travel_agent = Agent(
     name="travel_agent",
     model="gemini-2.0-flash",
-    description="Handles travel-related queries (transportation) for a trip.",
+    description="Manages travel-related planning.",
     instruction="""
-    You are responsible for planning transportation to the trip destination.
+        Rely only on user input: from_location, to_location, date, travel class, mode, and budget.
 
-    Use state['user_preferences'] to access:
-    - 'from_location': string
-    - 'to_location': string
-    - 'travel_date': string
-    - 'budget': float
-
-    Save your result in state['trip_plan']['travel'] as:
-    {
-        "mode": str,
-        "provider": str,
-        "departure_time": str,
-        "arrival_time": str,
-        "price": float
-    }
-
-    Suggest bus/train/flight based on distance and preferences.
-    If anything is ambiguous, ask the conversation agent for clarification.
-    """,
-    tools=[]
+        Do NOT hardcode or guess anything. If details are missing or if the query is general (e.g., 'train schedule from X to Y'), reroute to "handle_convo" tool only.
+        """,
+    tools=[collect_travel_info, handle_convo]
 )

@@ -1,11 +1,13 @@
+from google.adk.tools.tool_context import ToolContext
 from tools.llm_interface import query_llm
 
-def perform_search(query: str) -> str:
+async def perform_search(tool_context: ToolContext, query: str):
     prompt = f"""
-    Act like a real-time travel search assistant.
+    You are a search help assistant helping with accommodation/travel/sightseeing related queries.
 
-    Simulate searching for: "{query}".
-    Provide useful, factual information as if pulled from the web.
-    Be concise and informative. Don't make up data; clearly indicate if unsure.
+    Simulate a search for: "{query}".
+    Return useful, factual-like results for a user (e.g., hotels in Paris, train names from A to B, best places in Delhi to visit, etc.).
+    If information can't be retrieved, say so.
     """
-    return query_llm(prompt)
+    result = await query_llm(prompt)
+    return {"output": result}

@@ -1,54 +1,46 @@
 from google.adk.agents import Agent
-from google.adk.runners import Runner   
-
+from google.adk.runners import Runner
 from sub_agents.accommodation_agent.agent import accommodation_agent
 from sub_agents.travel_agent.agent import travel_agent
 from sub_agents.sightseeing_agent.agent import sightseeing_agent
-from sub_agents.conflict_checker_agent.agent import conflict_checker_agent
-from sub_agents.conversation_agent.agent import conversation_agent
+from sub_agents.conflict_checker_agent.agent import conflict_agent
+from sub_agents.conversation_agent.agent import convo_agent
+from tools.search_tool import perform_search
 
 trip_planner_supervisor = Agent(
     name="trip_supervisor",
     model="gemini-2.0-flash",
-    description="Supervisor agent that coordinates trip planning (accommodation, travel, sightseeing).",
+    description="Supervisor agent coordinating all trip planning sub-agents.",
     instruction="""
-    You are the main trip planning assistant. Your task is to understand user queries about planning trips
-    and delegate subtasks to the appropriate sub-agents.
+        You are the trip planning supervisor.
 
-    Trip Planning Components:
-    1. Accommodation: hotels, stays, availability
-    2. Travel: transportation options, schedules
-    3. Sightseeing: local spots, activities, attractions
-    4. Conflict Checking: validate compatibility (date, location, pricing)
-    5. Conversation Management: ask clarifying questions or follow up
+        Responsibilities:
+        - Understand user's intent: booking travel, accommodation, sightseeing, or general queries.
+        - Route subtasks to appropriate sub-agents.
+        - Ensure all required data is collected from the user.
+        - Use conversation agent when queries are vague or generic.
+        - Validate completed plans using conflict checker.
 
-    Use user session state to store and access:
-    - trip_plan (dict): overall plan with keys 'accommodation', 'travel', 'sightseeing'
-    - user_preferences (dict): budget, location, dates
-    - interaction_history (list): past messages
-
-    Follow this logic:
-    - Understand what aspect of trip the user is asking for
-    - Check if all parts of the plan align (call conflict agent if needed)
-    - Ask clarifying questions through conversation agent
-    - Update session state after every step
-
-    You must guide the user smoothly from initial query to a finalized trip plan.
-    """,
+        Session state structure:
+        - user_preferences: user's input for travel details
+        - trip_plan: dict with accommodation, travel, sightseeing entries
+        - conversation_result: if rerouted through search
+        - conflict: True/False
+        """,
     sub_agents=[
         accommodation_agent,
         travel_agent,
         sightseeing_agent,
-        conflict_checker_agent,
-        conversation_agent
+        conflict_agent,
+        convo_agent
     ],
-    tools=[]
+    tools=[perform_search]
 )
 
 class TripPlannerRunner(Runner):
     def __init__(self, session_service):
         super().__init__(
             app_name="trip_planner",
-        agent=trip_planner_supervisor,
-        session_service=session_service
+            agent=trip_planner_supervisor,
+            session_service=session_service
         )

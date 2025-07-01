@@ -23,7 +23,7 @@ initial_state = {
 }
 
 async def main_async():
-    await session_service._init_db()  # <- This must be inside the async function
+    await session_service._init_db()  
 
     user_id = input("Enter your user ID: ").strip()
 

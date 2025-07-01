@@ -14,9 +14,9 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 model = genai.GenerativeModel(MODEL_NAME)
 
-def query_llm(prompt: str, context: str = "") -> str:
+async def query_llm(prompt: str, context: str = "") -> str:
     try:
-        response = model.generate_content([context, prompt] if context else prompt)
+        response = await model.generate_content_async([context, prompt] if context else prompt)
         return response.text.strip()
     except Exception as e:
         return f"LLM Error: {str(e)}"

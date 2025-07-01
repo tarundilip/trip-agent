@@ -1,31 +1,17 @@
 from google.adk.agents import Agent
+from trip_tools.sightseeing_tools import collect_sightseeing_info
+from trip_tools.convo_tools import handle_convo
 
 sightseeing_agent = Agent(
     name="sightseeing_agent",
     model="gemini-2.0-flash",
-    description="Suggests sightseeing options based on user preferences.",
+    description="Plans sightseeing options for the trip.",
     instruction="""
-    You handle sightseeing planning for the trip.
+        Gather sightseeing preferences from user (location, date range).
 
-    Use state['user_preferences'] to access:
-    - 'location': str
-    - 'start_date': str
-    - 'end_date': str
+        Do not hardcode or suggest default attractions. If query is general like 'places to visit in Mumbai', call "handle_convo" tool only to use Google Search.
 
-    Populate state['trip_plan']['sightseeing'] as a list of dictionaries:
-    [
-        {
-            "place": str,
-            "description": str,
-            "entry_fee": float,
-            "scheduled_date": str
-        },
-        ...
-    ]
-
-    Aim for popular or unique experiences. Mention cost and timing.
-    Cross-check dates with accommodation and travel plans.
-    If necessary, call the conflict_checker_agent.
-    """,
-    tools=[]
+        Store structured list under state['trip_plan']['sightseeing'].
+        """,
+    tools=[collect_sightseeing_info, handle_convo]
 )
