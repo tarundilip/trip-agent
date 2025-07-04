@@ -37,39 +37,20 @@ async def add_agent_response_to_history(session_service, app_name, user_id, sess
     updated_state["interaction_history"] = history
     await session_service.update_session_state(app_name, user_id, session_id, updated_state)
 
-async def display_state(session_service, app_name, user_id, session_id, label="State"):
-    try:
-        session = await session_service.get_session(app_name, user_id, session_id)
-        print(f"\n{'=' * 10} {label} {'=' * 10}")
-        for key, value in session.state.items():
-            print(f"{key}: {value}")
-        print("=" * (22 + len(label)))
-    except Exception as e:
-        print(f"{Colors.BG_RED}{Colors.WHITE}Error displaying state: {e}{Colors.RESET}")
-
 def process_agent_response(event):
-    agent_name = event.author or "agent"
-    final_response = None
-
     if event.content and event.content.parts:
+        combined_text = ""
         for part in event.content.parts:
             if hasattr(part, "text") and part.text and not part.text.isspace():
-                final_response = part.text.strip()
-                print(
-                    f"{Colors.BG_BLUE}{Colors.WHITE}{Colors.BOLD}╔══ AGENT RESPONSE ══════════════════════════════════{Colors.RESET}"
-                )
-                print(f"{Colors.CYAN}{Colors.BOLD}{final_response}{Colors.RESET}")
-                print(
-                    f"{Colors.BG_BLUE}{Colors.WHITE}{Colors.BOLD}╚═════════════════════════════════════════════════════{Colors.RESET}"
-                )
-    return agent_name, final_response
+                combined_text += part.text.strip() + " "
+        if combined_text:
+            return event.author or "agent", combined_text.strip()
+    return event.author or "agent", None
 
 async def call_agent(runner, user_id, session_id, query):
+    from core.response_formatter import format_booking_response  
     content = types.Content(role="user", parts=[types.Part(text=query)])
-    print(f"\n{Colors.BG_GREEN}{Colors.BLACK}Running agent query...{Colors.RESET}")
-    await display_state(runner.session_service, runner.app_name, user_id, session_id, "Before")
-
-    final_response = None
+    full_response = ""
     agent_name = None
 
     try:
@@ -78,20 +59,28 @@ async def call_agent(runner, user_id, session_id, query):
             session_id=session_id,
             new_message=content
         ):
-            agent_name, final_response = process_agent_response(event)
-
+            agent_name, partial = process_agent_response(event)
+            if partial:
+                full_response += partial + "\n"
     except Exception as e:
         print(f"{Colors.BG_RED}{Colors.WHITE}ERROR: {e}{Colors.RESET}")
+        return
 
-    if final_response and agent_name:
+    if full_response and agent_name:
+        session = await runner.session_service.get_session(runner.app_name, user_id, session_id)
+        state = session.state
+
+        formatted = format_booking_response(state, full_response.strip())
+
+        print(f"\n{Colors.BG_BLUE}{Colors.WHITE}{Colors.BOLD}╔══ FORMATTED AGENT RESPONSE ══════════════════════════════════{Colors.RESET}")
+        print(f"{Colors.CYAN}{Colors.BOLD}{formatted}{Colors.RESET}")
+        print(f"{Colors.BG_BLUE}{Colors.WHITE}{Colors.BOLD}╚═════════════════════════════════════════════════════════════{Colors.RESET}")
+
         await add_agent_response_to_history(
             runner.session_service,
             runner.app_name,
             user_id,
             session_id,
             agent_name,
-            final_response,
+            formatted,
         )
-
-    await display_state(runner.session_service, runner.app_name, user_id, session_id, "After")
-    print(f"{Colors.YELLOW}{'-' * 40}{Colors.RESET}")

@@ -1,17 +1,31 @@
 from google.adk.agents import Agent
-from trip_tools.sightseeing_tools import collect_sightseeing_info
-from trip_tools.convo_tools import handle_convo
+from trip_tools.sightseeing_tools import (
+    parse_sightseeing_details,
+    check_sightseeing_state,
+    plan_sightseeing
+)
+from trip_tools.convo_tools import search_and_store
 
 sightseeing_agent = Agent(
     name="sightseeing_agent",
     model="gemini-2.0-flash",
-    description="Plans sightseeing options for the trip.",
+    description="Handles sightseeing planning for users.",
     instruction="""
-        Gather sightseeing preferences from user (location, date range).
+        You are responsible for planning sightseeing from user input.
 
-        Do not hardcode or suggest default attractions. If query is general like 'places to visit in Mumbai', call "handle_convo" tool only to use Google Search.
+        WORKFLOW:
+        1. When user provides input like "I want to visit City Palace on August 2nd", call 'parse_sightseeing_details'.
+        2. Then call 'check_sightseeing_state' to verify required info.
+        3. If state is ready, call 'plan_sightseeing'.
+        4. If details are missing, ask user specifically for missing fields.
+        5. When user responds again, repeat parsing and checking.
 
-        Store structured list under state['trip_plan']['sightseeing'].
-        """,
-    tools=[collect_sightseeing_info, handle_convo]
+        Use 'search_and_store' only for general queries like "top places to visit in Jaipur".
+    """,
+    tools=[
+        parse_sightseeing_details,
+        check_sightseeing_state,
+        plan_sightseeing,
+        search_and_store
+    ]
 )

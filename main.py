@@ -5,8 +5,8 @@ from google.adk.runners import Runner
 from core.session_service import SQLiteSessionService
 from core.utils import (
     add_user_query_to_history,
-    add_agent_response_to_history,
-    call_agent
+    call_agent,
+    Colors,
 )
 
 load_dotenv()
@@ -20,10 +20,11 @@ initial_state = {
     "destination": None,
     "preferences": [],
     "interaction_history": [],
+    "trip_plan": {}
 }
 
 async def main_async():
-    await session_service._init_db()  
+    await session_service._init_db()
 
     user_id = input("Enter your user ID: ").strip()
 
@@ -53,11 +54,14 @@ async def main_async():
             print("Exiting session. Goodbye!")
             break
 
+        print(f"\n{Colors.BOLD}You asked:{Colors.RESET} {user_query}")
+        print(f"\n{Colors.BG_GREEN}{Colors.BLACK}Running agent query...{Colors.RESET}")
+
         try:
             await add_user_query_to_history(session_service, APP_NAME, user_id, session_id, user_query)
             await call_agent(runner, user_id, session_id, user_query)
         except Exception as e:
-            print(f"Error during interaction: {e}")
+            print(f"{Colors.BG_RED}{Colors.WHITE}Error during interaction: {e}{Colors.RESET}")
 
 def main():
     asyncio.run(main_async())

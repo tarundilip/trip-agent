@@ -80,11 +80,13 @@ class SQLiteSessionService(BaseSessionService):
             await db.commit()
 
     async def delete_session(self, app_name: str, user_id: str, session_id: str) -> None:
-        await self._db.execute(
-            "DELETE FROM sessions WHERE app_name = ? AND user_id = ? AND session_id = ?",
-            (app_name, user_id, session_id)
-        )
-        await self._db.commit()
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "DELETE FROM sessions WHERE app_name = ? AND user_id = ? AND id = ?",
+                (app_name, user_id, session_id)
+            )
+            await db.commit()
+
 
     async def list_sessions(self, app_name, user_id):
         sessions = []

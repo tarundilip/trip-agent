@@ -1,3 +1,3 @@
-from .agent import trip_planner_agent
+from .agent import trip_planner_supervisor as root_agent
 
-__all__ = ["trip_planner_agent"]
+__all__ = ["root_agent"]

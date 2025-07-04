@@ -60,3 +60,90 @@ async def delete_user_session(user_id: str, session_id: str):
             (user_id, session_id)
         )
         await db.commit()
+
+async def save_accommodation_booking(user_id, session_id, booking_data):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS accommodation_bookings (
+                user_id TEXT,
+                session_id TEXT,
+                location TEXT,
+                check_in TEXT,
+                check_out TEXT,
+                hotel_name TEXT,
+                price_per_night REAL,
+                total_price REAL,
+                created_at TEXT
+            )
+        """)
+        await db.execute("""
+            INSERT INTO accommodation_bookings (
+                user_id, session_id, location, check_in, check_out, hotel_name,
+                price_per_night, total_price, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, session_id,
+            booking_data.get("location"),
+            booking_data.get("check_in"),
+            booking_data.get("check_out"),
+            booking_data.get("hotel_name"),
+            booking_data.get("price_per_night"),
+            booking_data.get("total_price"),
+            datetime.utcnow().isoformat()
+        ))
+        await db.commit()
+
+async def save_travel_booking(user_id, session_id, booking_data):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS travel_bookings (
+                user_id TEXT,
+                session_id TEXT,
+                mode TEXT,
+                provider TEXT,
+                departure_time TEXT,
+                arrival_time TEXT,
+                price REAL,
+                created_at TEXT
+            )
+        """)
+        await db.execute("""
+            INSERT INTO travel_bookings (
+                user_id, session_id, mode, provider, departure_time,
+                arrival_time, price, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, session_id,
+            booking_data.get("mode"),
+            booking_data.get("provider"),
+            booking_data.get("departure_time"),
+            booking_data.get("arrival_time"),
+            booking_data.get("price"),
+            datetime.utcnow().isoformat()
+        ))
+        await db.commit()
+
+async def save_sightseeing_plan(user_id, session_id, location, start_date, end_date):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sightseeing_plans (
+                user_id TEXT,
+                session_id TEXT,
+                location TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                created_at TEXT
+            )
+        """)
+        await db.execute("""
+            INSERT INTO sightseeing_plans (
+                user_id, session_id, location, start_date, end_date, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, session_id,
+            location,
+            start_date,
+            end_date,
+            datetime.utcnow().isoformat()
+        ))
+        await db.commit()

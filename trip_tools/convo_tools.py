@@ -1,26 +1,21 @@
 from google.adk.tools.tool_context import ToolContext
 from tools.search_tool import perform_search
 
-async def handle_convo(query: str, tool_context: ToolContext) -> dict:
-    """
-    Handle general knowledge queries using Google Search.
-    Store the result back for access by the calling agent.
-    """
+async def search_and_store(query: str, tool_context: ToolContext) -> dict:
     if not query or query.strip() == "":
         return {
-            "action": "handle_convo",
+            "action": "search_and_store",
             "status": "error",
-            "message": "Please provide a valid query."
+            "message": "Please provide a valid query to search."
         }
 
-    print(f"Running simulated travel search for query: {query}")
     result = await perform_search(tool_context, query)
 
     tool_context.state["conversation_result"] = result["output"]
 
     return {
-        "action": "handle_convo",
+        "action": "search_and_store",
         "status": "success",
-        "message": "Search result retrieved.",
+        "message": f"Here’s what I found based on your query:\n\n{result['output']}",
         "result": result["output"]
     }
