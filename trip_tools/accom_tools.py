@@ -5,16 +5,23 @@ from datetime import datetime
 def parse_accommodation_details(tool_context: ToolContext, user_input: str) -> dict:
     """Parse accommodation details from user's natural language input."""
     details = {}
-    
-    location_patterns = [
-        r"(?:in|at|to)\s+([A-Za-z\s]+?)(?:\s+from|\s+for|\s+,|\s+\.|$)",
-        r"accommodation\s+in\s+([A-Za-z\s]+?)(?:\s+from|\s+for|\s+,|\s+\.|$)"
-    ]
-    for pattern in location_patterns:
-        match = re.search(pattern, user_input, re.IGNORECASE)
-        if match:
-            details['accommodation_location'] = match.group(1).strip()
-            break
+
+    location_match = re.search(r"(?:in|at|to)\s+(.*?)(?:\s+from|\s+for|\s+within|\s+budget|\.|$)", user_input, re.IGNORECASE)
+    if location_match:
+        location_phrase = location_match.group(1).strip()
+        if "," in location_phrase:
+            parts = [p.strip() for p in location_phrase.split(",")]
+            if len(parts) > 1:
+                details['accommodation_location'] = parts[-1]
+            else:
+                details['accommodation_location'] = location_phrase
+        else:
+            details['accommodation_location'] = location_phrase
+
+    if 'accommodation_location' not in details:
+        hotel_match = re.search(r'(?:hotel|stay at)\s+([A-Za-z\s]+?),\s*([A-Za-z\s]+)', user_input, re.IGNORECASE)
+        if hotel_match:
+            details['accommodation_location'] = hotel_match.group(2).strip()
 
     date_patterns = [
         r"from\s+([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?)\s+to\s+([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?)",
@@ -64,19 +71,18 @@ def parse_accommodation_details(tool_context: ToolContext, user_input: str) -> d
 
 def normalize_date(date_str: str) -> str:
     try:
-        if re.match(r'[A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?', date_str):
-            cleaned = re.sub(r'(\d+)(?:st|nd|rd|th)', r'\1', date_str)
-            if not re.search(r'\d{4}', cleaned):
-                cleaned += ', 2025'
-            try:
-                return datetime.strptime(cleaned, '%B %d, %Y').strftime('%Y-%m-%d')
-            except ValueError:
-                return datetime.strptime(cleaned, '%b %d, %Y').strftime('%Y-%m-%d')
+        date_str = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', date_str)
+        if re.match(r'[A-Za-z]+\s+\d{1,2}(?:,\s*\d{4})?', date_str):
+            if not re.search(r'\d{4}', date_str):
+                date_str += ", 2025"
+            return datetime.strptime(date_str.strip(), '%B %d, %Y').strftime('%Y-%m-%d')
         elif re.match(r'\d{4}-\d{2}-\d{2}', date_str):
             return date_str
         elif re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
             parts = re.split(r'[-/]', date_str)
             return f"{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
+        elif re.match(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', date_str):
+            return datetime.strptime(date_str.strip(), '%d %B %Y').strftime('%Y-%m-%d')
     except Exception as e:
         print(f"Error normalizing date {date_str}: {e}")
     return date_str
@@ -133,7 +139,7 @@ def book_accommodation(tool_context: ToolContext) -> dict:
             total_price = "not specified"
 
     accommodation = {
-        "location": tool_context.state.get("accommodation_location"),
+        "location": tool_context.state.get("accommodation_location", "your selected location"),
         "check_in": check_in,
         "check_out": check_out,
         "budget": price_per_night,

@@ -6,11 +6,12 @@ def parse_sightseeing_details(tool_context: ToolContext, user_input: str) -> dic
     """Extract sightseeing details from user input."""
     details = {}
 
-    place_pattern = r"(?:visit|see|explore|go to|check out)\s+([A-Za-z\s]+?)(?:\s+on|\s+at|\s+with|\s+for|\s+entry|\s+which|\.|$)"
+    place_pattern = r"(?:visit(?:\s+to)?|see|explore|go to|check out)\s+(.*?)(?:\s+(?:in|at)\s+([A-Za-z\s]+))?(?:\s+on|\s+with|\s+entry|\s+which|\.|$)"
     date_patterns = [
         r"on\s+([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?)",
         r"on\s+(\d{4}-\d{2}-\d{2})",
-        r"on\s+(\d{1,2}[-/]\d{1,2}[-/]\d{4})"
+        r"on\s+(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
+        r"on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})"
     ]
     fee_patterns = [
         r"(?:entry\s+fee|ticket\s+price|cost)\s+(?:is\s+)?₹?\s*(\d+)",
@@ -20,7 +21,11 @@ def parse_sightseeing_details(tool_context: ToolContext, user_input: str) -> dic
 
     match = re.search(place_pattern, user_input, re.IGNORECASE)
     if match:
-        details['sightseeing_place'] = match.group(1).strip()
+        place = re.sub(r"^(a|an|the)\s+", "", match.group(1).strip(), flags=re.IGNORECASE)
+        city = match.group(2).strip() if match.group(2) else None
+        details['sightseeing_place'] = place
+        if city:
+            details['sightseeing_city'] = city
 
     for pattern in date_patterns:
         match = re.search(pattern, user_input, re.IGNORECASE)
@@ -46,7 +51,6 @@ def parse_sightseeing_details(tool_context: ToolContext, user_input: str) -> dic
     }
 
 def check_sightseeing_state(tool_context: ToolContext) -> dict:
-    """Check if all sightseeing fields are available in state."""
     required_fields = {
         'sightseeing_place': 'Sightseeing place',
         'sightseeing_date': 'Date',
@@ -81,12 +85,10 @@ def check_sightseeing_state(tool_context: ToolContext) -> dict:
         }
 
 def plan_sightseeing(tool_context: ToolContext) -> dict:
-    """Plan sightseeing using details in state."""
-
     trip_plan = tool_context.state.get("trip_plan", {})
 
     sightseeing = {
-        "place": tool_context.state.get("sightseeing_place"),
+        "place": tool_context.state.get("sightseeing_place", "your chosen site"),
         "date": tool_context.state.get("sightseeing_date"),
         "entry_fee": tool_context.state.get("sightseeing_fee")
     }
@@ -117,6 +119,8 @@ def normalize_date(date_str: str) -> str:
         elif re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
             parts = re.split(r'[-/]', date_str)
             return f"{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
+        elif re.match(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', date_str):
+            return datetime.strptime(date_str.strip(), '%d %B %Y').strftime('%Y-%m-%d')
     except Exception as e:
         print(f"Date normalization error: {e}")
     return date_str
