@@ -1,6 +1,7 @@
 from google.adk.tools.tool_context import ToolContext
 import re
 from datetime import datetime
+from loguru import logger
 
 def normalize_date(date_str):
     try:
@@ -67,6 +68,7 @@ def parse_trip_details(tool_context: ToolContext, user_input: str) -> dict:
         "parsed_state": tool_context.state
     }
 
+
 def check_trip_conflicts(tool_context: ToolContext) -> dict:
     state = tool_context.state
     trip_plan = state.get("trip_plan", {})
@@ -125,6 +127,29 @@ def check_trip_conflicts(tool_context: ToolContext) -> dict:
         "message": "Everything looks good! No conflicts were found in your trip plan."
     }
 
+
 def parse_and_check_conflicts(tool_context: ToolContext, user_input: str) -> dict:
     parse_trip_details(tool_context, user_input)
     return check_trip_conflicts(tool_context)
+
+
+# ✅ ADD THIS FUNCTION (ALIAS FOR COMPATIBILITY)
+def check_conflicts(tool_context: ToolContext) -> dict:
+    """
+    Alias for check_trip_conflicts - checks for conflicts in the current trip plan
+    
+    This function is used by the conflict_checker_agent to validate trip bookings.
+    It checks for:
+    - Date conflicts between travel and accommodation
+    - Sightseeing dates outside accommodation period
+    - Budget overruns
+    """
+    logger.info("🔍 Checking trip conflicts...")
+    result = check_trip_conflicts(tool_context)
+    
+    if result["status"] == "conflict_detected":
+        logger.warning(f"⚠️ Conflicts found: {'; '.join(result.get('conflict_reasons', []))}")
+    else:
+        logger.info("✅ No conflicts detected")
+    
+    return result

@@ -1,110 +1,97 @@
-import uuid
-import datetime
-import json
-import aiosqlite
-from google.adk.sessions import Session
-from google.adk.sessions.base_session_service import BaseSessionService
+from typing import Optional, Dict
+from loguru import logger
+from .db import db_manager
+from .models import User, Session
 
-class SQLiteSessionService(BaseSessionService):
-    def __init__(self, db_path="sessions.db"):
-        self.db_path = db_path
+class SessionManager:
+    """Manages user sessions and state persistence"""
+    
+    def __init__(self):
+        self.db = db_manager
 
-    async def _init_db(self):
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS sessions (
-                    id TEXT PRIMARY KEY,
-                    app_name TEXT,
-                    user_id TEXT,
-                    created TEXT,
-                    updated TEXT,
-                    state TEXT
-                )
-            """)
-            await db.commit()
-
-    async def create_session(self, app_name, user_id, state, session_id=None):
-        session_id = session_id or str(uuid.uuid4())
-        now = datetime.datetime.now().isoformat()
-
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                INSERT OR REPLACE INTO sessions (id, app_name, user_id, created, updated, state)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (session_id, app_name, user_id, now, now, json.dumps(state)))
-            await db.commit()
-
-        return Session(
-            id=session_id,
-            appName=app_name,
-            userId=user_id,
-            state=state
-        )
-
-    def _safe_load_state(self, state_str):
+    async def create_user_session(
+        self,
+        name: str,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        session_name: Optional[str] = None
+    ) -> Dict:
+        """
+        Create a new user and session
+        
+        Args:
+            name: User's name
+            email: User's email (optional)
+            phone: User's phone (optional)
+            session_name: Name for the session (optional)
+            
+        Returns:
+            dict: Contains user_id and session_id
+        """
         try:
-            return json.loads(state_str)
-        except json.JSONDecodeError:
-            try:
-                return eval(state_str)
-            except Exception:
-                return {}
-
-    async def get_session(self, app_name, user_id, session_id):
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("""
-                SELECT state, created, updated FROM sessions
-                WHERE app_name=? AND user_id=? AND id=?
-            """, (app_name, user_id, session_id)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    state_str, created, updated = row
-                    state = self._safe_load_state(state_str)
-                    return Session(
-                        id=session_id,
-                        appName=app_name,
-                        userId=user_id,
-                        state=state
-                    )
-                raise ValueError("Session not found")
-
-    async def update_session_state(self, app_name, user_id, session_id, state):
-        now = datetime.datetime.now().isoformat()
-
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
-                UPDATE sessions
-                SET state = ?, updated = ?
-                WHERE app_name = ? AND user_id = ? AND id = ?
-            """, (json.dumps(state), now, app_name, user_id, session_id))
-            await db.commit()
-
-    async def delete_session(self, app_name: str, user_id: str, session_id: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                "DELETE FROM sessions WHERE app_name = ? AND user_id = ? AND id = ?",
-                (app_name, user_id, session_id)
+            # Create user
+            user = await self.db.create_user(name=name, email=email, phone=phone)
+            
+            # Create session for user
+            session = await self.db.create_session(
+                user_id=user.user_id,
+                session_name=session_name
             )
-            await db.commit()
+            
+            logger.info(f"Created session for user {user.user_id}")
+            
+            return {
+                "user_id": user.user_id,
+                "session_id": session.session_id,
+                "user_name": user.name,
+                "session_name": session_name
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create user session: {str(e)}")
+            raise
 
+    async def get_or_create_user(
+        self,
+        email: Optional[str] = None,
+        name: Optional[str] = None
+    ) -> User:
+        """
+        Get existing user or create new one
+        
+        Args:
+            email: User's email
+            name: User's name
+            
+        Returns:
+            User: User object
+        """
+        if email:
+            user = await self.db.get_user_by_email(email)
+            if user:
+                await self.db.update_user_login(user.user_id)
+                return user
+        
+        if not name:
+            raise ValueError("Name is required for new users")
+        
+        return await self.db.create_user(name=name, email=email)
 
-    async def list_sessions(self, app_name, user_id):
-        sessions = []
+    async def get_session(self, session_id: str) -> Optional[Session]:
+        """Retrieve session by ID"""
+        return await self.db.get_session(session_id)
 
-        async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("""
-                SELECT id, created, updated, state FROM sessions
-                WHERE app_name=? AND user_id=?
-                ORDER BY updated DESC
-            """, (app_name, user_id)) as cursor:
-                async for row in cursor:
-                    sid, created, updated, state_str = row
-                    state = self._safe_load_state(state_str)
-                    sessions.append(Session(
-                        id=sid,
-                        appName=app_name,
-                        userId=user_id,
-                        state=state
-                    ))
+    async def list_user_sessions(self, user_id: str) -> list:
+        """List all sessions for a user"""
+        return await self.db.list_user_sessions(user_id)
 
-        return sessions
+    async def update_session_state(self, session_id: str, state: Dict) -> None:
+        """Update session state"""
+        await self.db.update_session_state(session_id, state)
+
+    async def create_session(self, user_id: str, session_name: Optional[str] = None) -> Session:
+        """Create a new session for existing user"""
+        return await self.db.create_session(user_id, session_name)
+
+# Global session manager instance
+session_manager = SessionManager()

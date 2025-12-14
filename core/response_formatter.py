@@ -24,6 +24,7 @@ def format_booking_response(state: dict, raw_response: str) -> str:
     from_city = travel.get("from")
     to_city = travel.get("to")
     date = travel.get("date")
+    transport_name = travel.get("transport_name")  # Generic name
 
     if not (from_city and to_city and date):
         r_from, r_to, r_date = extract_from_raw(raw_response)
@@ -31,110 +32,32 @@ def format_booking_response(state: dict, raw_response: str) -> str:
         to_city = to_city or r_to
         date = date or r_date
 
-    if "train" in raw_response.lower() or mode == "train":
+    # Generic travel booking display
+    if mode in ["train", "flight", "bus", "ferry", "metro", "tram", "cab", "car"]:
         if from_city and to_city and date:
+            mode_label = mode.capitalize()
+            
             return "\n".join(filter(None, [
-                f" Train booked from {from_city} to {to_city} on {date}.",
+                f"✈️ {mode_label} booked from {from_city} to {to_city} on {date}.",
                 "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Train"),
+                "📋 Booking Details:",
+                safe_line("Transport Mode", mode_label),
+                safe_line("Transport Name/Number", transport_name),
                 safe_line("From", from_city),
                 safe_line("To", to_city),
                 safe_line("Date", date),
                 safe_line("Departure Time", travel.get("departure_time")),
                 safe_line("Arrival Time", travel.get("arrival_time")),
-                safe_line("Seat Type", travel.get("seat_type")),
+                safe_line("Seat/Class", travel.get("seat_type")),
                 safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("PNR Number", generate_pnr()),
-            ]))
-
-    elif "flight" in raw_response.lower() or mode == "flight":
-        if from_city and to_city and date:
-            return "\n".join(filter(None, [
-                f" Flight booked from {from_city} to {to_city} on {date}.",
-                "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Flight"),
-                safe_line("Airline", travel.get("airline")),
-                safe_line("From", from_city),
-                safe_line("To", to_city),
-                safe_line("Date", date),
-                safe_line("Departure", travel.get("departure_time")),
-                safe_line("Arrival", travel.get("arrival_time")),
-                safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("Boarding Pass No.", generate_boarding_pass()),
-            ]))
-
-    elif "bus" in raw_response.lower() or mode == "bus":
-        if from_city and to_city and date:
-            return "\n".join(filter(None, [
-                f" Bus ticket confirmed from {from_city} to {to_city} on {date}.",
-                "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Bus"),
-                safe_line("Bus Provider", travel.get("provider")),
-                safe_line("From", from_city),
-                safe_line("To", to_city),
-                safe_line("Departure", travel.get("departure_time")),
-                safe_line("Seat", travel.get("seat_type")),
-                safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("Ticket Number", generate_ticket_number()),
-            ]))
-
-    elif "ferry" in raw_response.lower() or mode == "ferry":
-        if from_city and to_city and date:
-            return "\n".join(filter(None, [
-                f" Ferry booking confirmed from {from_city} to {to_city} on {date}.",
-                "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Ferry"),
-                safe_line("Ferry Operator", travel.get("provider")),
-                safe_line("From", from_city),
-                safe_line("To", to_city),
-                safe_line("Departure", travel.get("departure_time")),
-                safe_line("Duration", travel.get("duration")),
-                safe_line("Seat Type", travel.get("seat_type")),
-                safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("Ferry Ticket", generate_ferry_ticket()),
-            ]))
-
-    elif "metro" in raw_response.lower() or mode == "metro":
-        if from_city and to_city and date:
-            return "\n".join(filter(None, [
-                f" Metro journey confirmed on {date} from {from_city} to {to_city}.",
-                "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Metro"),
-                safe_line("Line", travel.get("line")),
-                safe_line("From", from_city),
-                safe_line("To", to_city),
-                safe_line("Departure", travel.get("departure_time")),
-                safe_line("Seat Type", travel.get("seat_type")),
-                safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("Metro Token", generate_metro_token()),
-            ]))
-
-    elif "tram" in raw_response.lower() or mode == "tram":
-        if from_city and to_city and date:
-            return "\n".join(filter(None, [
-                f" Tram ride confirmed on {date} from {from_city} to {to_city}.",
-                "",
-                " Booking Details:",
-                safe_line("Transport Mode", "Tram"),
-                safe_line("Tram Line", travel.get("line")),
-                safe_line("From", from_city),
-                safe_line("To", to_city),
-                safe_line("Departure", travel.get("departure_time")),
-                safe_line("Seat Type", travel.get("seat_type")),
-                safe_line("Price", f"₹{travel.get('price')}") if travel.get("price") else "",
-                safe_line("Tram Pass", generate_tram_pass()),
+                safe_line("Ticket/Booking ID", travel.get("ticket_id")),
             ]))
 
     elif "hotel" in raw_response.lower() and accommodation.get("hotel_name"):
         return "\n".join(filter(None, [
-            f" Hotel booking confirmed at {accommodation.get('hotel_name')} in {accommodation.get('city')}.",
+            f"🏨 Hotel booking confirmed at {accommodation.get('hotel_name')} in {accommodation.get('city')}.",
             "",
-            " Booking Details:",
+            "📋 Booking Details:",
             safe_line("Hotel", accommodation.get("hotel_name")),
             safe_line("City", accommodation.get("city")),
             safe_line("Check-in", accommodation.get("check_in")),
@@ -147,9 +70,9 @@ def format_booking_response(state: dict, raw_response: str) -> str:
 
     elif "sightseeing" in raw_response.lower() and sightseeing.get("place"):
         return "\n".join(filter(None, [
-            f" Sightseeing entry confirmed for {sightseeing.get('place')} on {sightseeing.get('date')}.",
+            f"🎫 Sightseeing entry confirmed for {sightseeing.get('place')} on {sightseeing.get('date')}.",
             "",
-            " Entry Details:",
+            "📋 Entry Details:",
             safe_line("Place", sightseeing.get("place")),
             safe_line("Date", sightseeing.get("date")),
             safe_line("Entry Slot", sightseeing.get("time")),

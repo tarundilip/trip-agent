@@ -21,6 +21,14 @@ class TripToolContext:
             self.session_id,
             self.state
         )
+    
+    def get_state_value(self, key: str, default=None):
+        """Get a value from state"""
+        return self.state.get(key, default)
+    
+    def set_state_value(self, key: str, value):
+        """Set a value in state"""
+        self.state[key] = value
 
     def __repr__(self):
         return (
